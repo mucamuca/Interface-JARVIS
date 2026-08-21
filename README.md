@@ -1,131 +1,173 @@
-# JARVIS — assistente local Qwen3.5
+# MODELO-JARVIS
 
-Assistente Windows local: Qwen3.5-4B na GPU, arquivos controlados, Codex,
-pesquisa web citada e STT faster-whisper. Microsoft Daniel pt-BR é o TTS
-principal; Piper permanece como fallback local.
+Assistente local para Windows que executa o **Qwen3.5-4B** na GPU, com interface
+HUD, conversa por texto e voz, ferramentas controladas para arquivos e pesquisa
+web com fontes. O projeto mantém tudo que é sensível na máquina local: modelo,
+runtime, histórico operacional, gravações temporárias e chaves de API não são
+versionados.
 
-## Uso rápido
+## O que o modelo faz
 
-```powershell
-Set-Location D:\tern
-python -m tern.orchestrator start
-python -m tern.orchestrator ask "Pesquise notícias recentes sobre IA e cite fontes."
-python -m tern.orchestrator voice
-python -m tern.orchestrator codex-shared-start
-python -m tern.orchestrator codex-shared-tui
-jarvis deepseek
+O núcleo de linguagem é um arquivo GGUF quantizado do **Qwen3.5-4B**. A
+configuração padrão espera o arquivo
+`models/Qwen_Qwen3.5-4B-Q4_K_M.gguf` e o executa com `llama-server` (llama.cpp
+com Vulkan) em `http://127.0.0.1:8080`.
+
+`Q4_K_M` identifica uma quantização de baixo número de bits: ela reduz consumo de
+memória e espaço em relação aos pesos completos, mantendo o modelo utilizável em
+uma GPU local. O JARVIS não treina o Qwen durante a conversa e não envia as
+perguntas do usuário para um serviço de IA por padrão.
+
+O nome histórico `tern` também está presente no projeto por causa de experimentos
+com vetores ternários (`-1`, `0`, `+1`). Esses experimentos são módulos separados;
+o assistente principal usa o Qwen GGUF quantizado configurado no ambiente.
+
+## Como uma pergunta vira resposta
+
+```text
+texto, microfone ou HUD web
+        │
+        ▼
+Supervisor Python ──► políticas de decisão e segurança
+        │
+        ├── resposta direta ──► Qwen3.5 via llama-server local
+        │
+        └── ferramenta necessária
+              ├── arquivos dentro das raízes autorizadas
+              ├── pesquisa web, abertura e extração de fontes
+              ├── sessão compartilhada do Codex
+              └── consulta opcional ao DeepSeek
+        │
+        ▼
+resposta textual completa ──► tela, terminal ou síntese de voz
 ```
 
-O Codex usa um App Server local compartilhado. Abra a TUI diretamente na thread
-persistida com `python -m tern.orchestrator codex-shared-tui` ou `jarvis codex`;
-o comando valida a thread antes de abrir e nao exige copiar o `thread_id`.
+O `RuntimeManager` verifica a saúde e a configuração do `llama-server` antes de
+reutilizá-lo. Ele não troca nem encerra um servidor externo sem uma ação explícita.
+O cliente local fala com a API compatível com OpenAI do `llama-server` em
+`/v1/chat/completions`. Quando o modelo solicita uma ferramenta, o Python valida
+os argumentos e aplica as regras antes de qualquer operação ser executada.
 
-O DeepSeek e um consultor opcional e stateless. `jarvis deepseek` abre uma TUI
-persistente compartilhada com o Qwen, sem chamar a API no startup. Configure
-`DEEPSEEK_API_KEY` e `DEEPSEEK_MODEL` para enviar mensagens; sem chave, historico
-e comandos locais continuam disponiveis em modo leitura.
+## Recursos
 
-Diagnostico completo da integracao Qwen/Codex:
+- Qwen3.5-4B local em GGUF, com GPU via Vulkan quando disponível.
+- Interface HUD web e desktop, com avatar, telemetria e rotação fluida da cabeça.
+- CLI `jarvis` para iniciar a interface, conversar, consultar status e diagnosticar
+  o ambiente.
+- Voz local: STT com faster-whisper e TTS Windows SAPI; Piper pode atuar como
+  fallback.
+- Pesquisa web com classificação de intenção, limites de rede, validação de fontes
+  e citações.
+- Acesso a arquivos limitado a diretórios autorizados; ações sensíveis exigem
+  confirmação.
+- Integração opcional com Codex e DeepSeek, mantendo estado e credenciais locais.
+
+## Instalação no Windows
+
+Requisitos básicos:
+
+- Python 3.9 ou superior.
+- Um `llama-server` compatível (o caminho pode ser configurado).
+- O arquivo GGUF do Qwen3.5-4B, obtido separadamente e colocado em `models/`.
 
 ```powershell
-python -m tern.orchestrator codex-bridge-diagnose
-python -m tern.orchestrator codex-shared-status
-python -m tern.orchestrator codex-steer "Analise somente codex.py."
-python -m tern.orchestrator codex-interrupt
-python -m tern.orchestrator codex-shared-events --follow
-python -m tern.orchestrator codex-jobs
-python -m tern.orchestrator codex-job-status JOB_ID
-python -m tern.orchestrator codex-job-result JOB_ID
-python -m tern.orchestrator projects
-python -m tern.orchestrator project-active
-python -m tern.orchestrator project-use tern
-python -m tern.orchestrator project-find "configuracao da voz"
-python -m tern.orchestrator project-refresh
+git clone https://github.com/mucamuca/MODELO-JARVIS.git
+Set-Location MODELO-JARVIS
+
+py -m venv .venv
+.\.venv\Scripts\Activate.ps1
+python -m pip install --upgrade pip
+python -m pip install -e ".[voice]"
+
+Copy-Item .env.example .env
 ```
 
-Para disponibilizar o assistente pelo nome em qualquer terminal:
+Edite `.env` apenas se seus caminhos forem diferentes dos padrões:
+
+```dotenv
+LOCAL_MODEL_PATH=C:\caminho\para\Qwen_Qwen3.5-4B-Q4_K_M.gguf
+LOCAL_MODEL_RUNTIME=C:\caminho\para\llama-server.exe
+```
+
+Os pesos do Qwen, os binários de runtime, caches e modelos de voz grandes são
+ignorados pelo Git. Isso evita subir arquivos acima do limite do GitHub e mantém o
+repositório focado em código e configuração reproduzível.
+
+## Executar
 
 ```powershell
-python -m pip install --editable D:\tern
+# Inicia ou reutiliza o servidor local do Qwen
+jarvis start
+
+# Abre a interface HUD no navegador
 jarvis
+
+# Envia uma pergunta pelo terminal
+jarvis ask "Explique como funciona a quantização Q4_K_M."
+
+# Mostra o modelo, endpoint e parâmetros em uso
+jarvis status
 ```
 
-Digitar apenas `jarvis` inicia a sessão contínua de voz. Os comandos da CLI
-também ficam disponíveis pelo alias, por exemplo `jarvis status`,
-`jarvis voice --once` e `jarvis ask "Sua pergunta"`.
-
-Diagnóstico e configuração:
-
-```powershell
-python -m tern.orchestrator config
-python -m tern.orchestrator search-diagnose "notícias recentes sobre inteligência artificial"
-python -m tern.orchestrator voice-devices
-python -m tern.orchestrator voice-configure
-python -m tern.orchestrator voice-model-info
-python -m tern.orchestrator voice-diagnose
-python -m tern.orchestrator voice-pronunciation-test
-python -m tern.orchestrator voice-playback-diagnose
-python -m tern.orchestrator voice-phoneme-diagnose
-python -m tern.orchestrator voice-piper-compare
-python -m tern.orchestrator voice-compare-models
-```
-
-Pesquisa classifica intenção, expande consultas, pontua resultados, valida páginas
-abertas e tenta correções. Notícias não aceitam Wikipédia, entretenimento ou
-página genérica como fonte principal. TTS inicia pelo primeiro segmento,
-sintetiza próximos em fila limitada e Esc cancela reprodução/síntese pendente.
-Dispositivos persistem por nome e host API, com ID como fallback.
-Piper é o único TTS ativo: totalmente local, sem clonagem e sem custo por uso.
-O preset `clear_adult` usa o sample rate nativo do modelo, taxa intuitiva
-`VOICE_TTS_RATE=0.94`, defaults acústicos do Piper e normalização falada de
-status comuns em inglês. A resposta textual original permanece intacta.
-
-Vozes Piper instaladas podem ser selecionadas por `VOICE_PIPER_VOICE`:
-`miro`, `jeff`, `cadu`, `dii` ou `faber`. O comando
-`voice-compare-models` gera WAVs equivalentes, calcula CER/WER com o
-faster-whisper e reproduz somente candidatos locais com licença identificada.
-Nenhum modelo é baixado durante síntese ou conversa.
-
-## Interface visual
-
-A interface HUD do JARVIS está em [`interface/`](interface/README.md). Ela inclui
-as versões web e desktop, o avatar Synth-Alpha, o Terminal de Resposta e os
-comandos locais do painel.
-
-A versão web tem entrada por voz: o botão de microfone grava a fala e transcreve
-com o mesmo faster-whisper do orquestrador, na própria máquina. O texto
-reconhecido é enviado automaticamente, então os comandos do painel funcionam
-falando. Sem o modelo em `models/voice/`, o botão fica oculto.
-
-Para iniciar a versão web no Windows:
+A interface web também pode ser iniciada diretamente:
 
 ```powershell
 Set-Location interface
 .\run_web.bat
 ```
 
-O código da interface pode ser usado, copiado, modificado e incorporado em
-projetos próprios conforme a [Licença MIT da interface](interface/LICENSE).
+## Voz
 
-Documentação:
+O fluxo de voz usa o mesmo supervisor da conversa por texto:
 
-- [Pesquisa web](docs/web-research.md)
-- [Voz](docs/voice.md)
-- [Bridge compartilhado Qwen/Codex](docs/codex-bridge.md)
-- [DeepSeek consultivo e TUI](docs/deepseek.md)
-- [Descoberta de projetos](docs/project-discovery.md)
+```text
+microfone → faster-whisper (CPU/int8) → Supervisor → Qwen/ferramentas
+         → resposta textual → Windows SAPI (Daniel pt-BR) ou Piper
+```
 
-Testes:
+Para diagnosticar dispositivos e modelos locais:
+
+```powershell
+jarvis voice-devices
+jarvis voice-configure
+jarvis voice-model-info
+jarvis voice-diagnose
+```
+
+## Configuração e segurança
+
+- `.env` não é enviado ao Git; use `.env.example` como referência.
+- Chaves de pesquisa web, Codex e DeepSeek são opcionais e permanecem na máquina.
+- A pesquisa web é feita pelo processo Python, não pelo modelo diretamente.
+- Caminhos de arquivo são validados contra uma allowlist.
+- Operações destrutivas e mudanças relevantes pedem confirmação.
+
+Documentação complementar está em [`docs/`](docs/), incluindo voz, pesquisa web,
+Codex, DeepSeek, gerenciamento de arquivos e decisões do agente.
+
+## Estrutura principal
+
+```text
+interface/             HUD web, desktop e servidor local da interface
+tern/orchestrator/     supervisor, runtime, ferramentas e políticas
+tern/file_management/  operações locais de arquivos com persistência
+models/voice/          configurações leves dos modelos de voz
+docs/                  documentação técnica e relatórios
+tests/                 testes automatizados
+```
+
+## Testes
 
 ```powershell
 python -m pytest -q
-$env:RUN_VOICE_INTEGRATION_TESTS='true'
-python -m pytest -q tests\test_voice_integration.py
-Remove-Item Env:RUN_VOICE_INTEGRATION_TESTS
-
 ```
 
-## Contribuidores
+## Licença
+
+O código da interface está sob [MIT](interface/LICENSE). Bibliotecas, modelos e
+vozes baixados separadamente mantêm suas próprias licenças.
+
+## Autoria
 
 - [Murilo Roque (@mucamuca)](https://github.com/mucamuca)
 - [PrK (@PrK071)](https://github.com/PrK071)
