@@ -1,5 +1,16 @@
 # MODELO-JARVIS
 
+## Apresentação
+
+<p align="center">
+  <img src="docs/images/hud-principal.png" alt="Interface HUD principal do JARVIS" width="100%" />
+</p>
+
+<p align="center">
+  <img src="docs/images/conexoes-ia.png" alt="Painel de conexões de IA do JARVIS" width="49%" />
+  <img src="docs/images/documentacao-modelo.png" alt="Documentação do MODELO-JARVIS no GitHub" width="49%" />
+</p>
+
 Assistente local para Windows que executa o **Qwen3.5-4B** na GPU, com interface
 HUD, conversa por texto e voz, ferramentas controladas para arquivos e pesquisa
 web com fontes. O projeto mantém tudo que é sensível na máquina local: modelo,
