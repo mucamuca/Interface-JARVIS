@@ -8,7 +8,6 @@
 
 <p align="center">
   <img src="docs/images/conexoes-ia.png" alt="Painel de conexões de IA do JARVIS" width="49%" />
-  <img src="docs/images/documentacao-modelo.png" alt="Documentação do MODELO-JARVIS no GitHub" width="49%" />
 </p>
 
 Assistente local para Windows que executa o **Qwen3.5-4B** na GPU, com interface
