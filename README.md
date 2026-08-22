@@ -1,5 +1,11 @@
 # MODELO-JARVIS
 
+Assistente local para Windows que executa o **Qwen3.5-4B** na GPU, com interface
+HUD, conversa por texto e voz, ferramentas controladas para arquivos e pesquisa
+web com fontes. O projeto mantém tudo que é sensível na máquina local: modelo,
+runtime, histórico operacional, gravações temporárias e chaves de API não são
+versionados.
+
 ## Apresentação
 
 <p align="center">
@@ -7,14 +13,8 @@
 </p>
 
 <p align="center">
-  <img src="docs/images/conexoes-ia.png" alt="Painel de conexões de IA do JARVIS" width="49%" />
+  <img src="docs/images/conexoes-ia.png" alt="Painel de conexões de IA do JARVIS" width="100%" />
 </p>
-
-Assistente local para Windows que executa o **Qwen3.5-4B** na GPU, com interface
-HUD, conversa por texto e voz, ferramentas controladas para arquivos e pesquisa
-web com fontes. O projeto mantém tudo que é sensível na máquina local: modelo,
-runtime, histórico operacional, gravações temporárias e chaves de API não são
-versionados.
 
 ## O que o modelo faz
 
